@@ -10,9 +10,27 @@ void UAshAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	ACharacter* Character = Cast<ACharacter>(TryGetPawnOwner());
 	if (Character)
 	{
-		// 2. 直接计算速度长度并赋值给 GroundSpeed
 		GroundSpeed = Character->GetVelocity().Size();
-        
-		// 之后你可以从你的 Character 类里获取 bIsTargeting 等变量
+
+		// 检查是否有玩家输入（加速度）
+		bool bHasInput = Character->GetCharacterMovement()->GetCurrentAcceleration().Size() > 0.f;
+
+		if (bHasInput)
+		{
+			bIsAccelerating = true; 
+			bIsStopping = false;
+		}
+		else
+		{
+			bIsAccelerating = false;
+          
+			// 只有当“没有输入”且“还有余速”时，才判定为正在收步
+			// 如果速度已经接近 0，则 bIsStopping 也要关掉，否则会卡在 End 动画
+			bIsStopping = (GroundSpeed > 5.f); 
+		}
+
+		float MaxSpeed = Character->GetCharacterMovement()->MaxWalkSpeed;
+		bIsRunning = (MaxSpeed > 250.f); 
+		
 	}
 }

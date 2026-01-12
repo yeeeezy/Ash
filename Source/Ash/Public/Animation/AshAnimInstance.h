@@ -20,4 +20,14 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	bool bIsTargeting;
+
+	// 新增：判断是否正在加速（按住 Shift）
+	UPROPERTY(BlueprintReadOnly, Category = Movement)
+	bool bIsAccelerating;
+
+	UPROPERTY(BlueprintReadOnly, Category = Movement)
+	bool bIsStopping;
+
+	UPROPERTY(BlueprintReadOnly, Category = Movement)
+	bool bIsRunning;
 };
