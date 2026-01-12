@@ -4,8 +4,10 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "AttributeSet/BaseAttributeSet.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Character/Boss/EchoBoss.h"
+
 
 APlayerCharacter::APlayerCharacter()
 {
@@ -49,6 +51,10 @@ APlayerCharacter::APlayerCharacter()
 
     //Jump
     JumpMaxCount = 1;
+
+    AbilitySystemComponent = CreateDefaultSubobject<UAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
+
+    AttributeSet = CreateDefaultSubobject<UBaseAttributeSet>(TEXT("AttributeSet"));
 }
 
 void APlayerCharacter::BeginPlay()
@@ -64,7 +70,16 @@ void APlayerCharacter::BeginPlay()
     }
 
     GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
+
+    if (AbilitySystemComponent && AttributeSet)
+    {
+        // 设置初始血量为 100
+        AttributeSet->InitHealth(100.f);
+        AttributeSet->InitMaxHealth(100.f);
+        
+    }
 }
+
 
 void APlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {

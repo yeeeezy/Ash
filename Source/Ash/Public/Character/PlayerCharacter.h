@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Character/BaseCharacter.h"
 #include "InputActionValue.h"
+#include "AbilitySystemInterface.h"
 #include "PlayerCharacter.generated.h"
 
 /** 前向声明 */
@@ -11,8 +12,9 @@ class UCameraComponent;
 class UInputMappingContext;
 class UInputAction;
 
+
 UCLASS()
-class ASH_API APlayerCharacter : public ABaseCharacter
+class ASH_API APlayerCharacter : public ABaseCharacter, public IAbilitySystemInterface
 {
     GENERATED_BODY()
 
@@ -66,6 +68,18 @@ protected:
 protected:
     virtual void BeginPlay() override;
     virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+
+protected:
+    // ASC 组件是 GAS 的核心
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GAS")
+    class UAbilitySystemComponent* AbilitySystemComponent;
+
+    // 属性集合
+    UPROPERTY()
+    class UBaseAttributeSet* AttributeSet;
+
+    // 实现接口函数
+    virtual class UAbilitySystemComponent* GetAbilitySystemComponent() const override { return AbilitySystemComponent; }
 
 protected:
     // 锁定范围
