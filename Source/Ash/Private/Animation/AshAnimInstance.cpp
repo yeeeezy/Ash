@@ -1,4 +1,6 @@
 #include "Animation/AshAnimInstance.h"
+
+#include "KismetAnimationLibrary.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
@@ -10,6 +12,16 @@ void UAshAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	ACharacter* Character = Cast<ACharacter>(TryGetPawnOwner());
 	if (Character)
 	{
+		// 获取角色的速度向量
+		FVector Velocity = Character->GetVelocity();
+		// 获取角色的旋转量
+		FRotator Rotation = Character->GetActorRotation();
+
+
+
+		// 2. 计算 Direction (-180 到 180)
+		// 这个函数会自动根据角色朝向和移动方向计算出偏移角度
+		Direction = UKismetAnimationLibrary::CalculateDirection(Velocity, Rotation);
 		GroundSpeed = Character->GetVelocity().Size();
 
 		// 检查是否有玩家输入（加速度）

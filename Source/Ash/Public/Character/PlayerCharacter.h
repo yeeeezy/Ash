@@ -4,6 +4,7 @@
 #include "Character/BaseCharacter.h"
 #include "InputActionValue.h"
 #include "AbilitySystemInterface.h"
+#include "GameplayEffectTypes.h"
 #include "PlayerCharacter.generated.h"
 
 /** 前向声明 */
@@ -12,7 +13,7 @@ class UCameraComponent;
 class UInputMappingContext;
 class UInputAction;
 
-
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnHealthChangedSignature, float, NewHealth, float, MaxHealth);
 UCLASS()
 class ASH_API APlayerCharacter : public ABaseCharacter, public IAbilitySystemInterface
 {
@@ -20,6 +21,14 @@ class ASH_API APlayerCharacter : public ABaseCharacter, public IAbilitySystemInt
 
 public:
     APlayerCharacter();
+    UPROPERTY(BlueprintAssignable, Category = "GAS|Attributes")
+    FOnHealthChangedSignature OnHealthChanged;
+    /** * 执行装备剑的逻辑
+     * BlueprintCallable 方便你绑定到按键输入（如键盘 F 键）
+     */
+    UFUNCTION(BlueprintCallable, Category = "Combat")
+    void EquipSword();
+    
 
 protected:
     /** 摄像机摇臂 */
@@ -97,5 +106,7 @@ protected:
     virtual void Tick(float DeltaTime) override;
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animations", meta = (AllowPrivateAccess = "true"))
     UAnimMontage* JumpMontage;
-    
+
+    //监听Health变化
+    virtual void HealthChanged(const FOnAttributeChangeData& Data);
 };

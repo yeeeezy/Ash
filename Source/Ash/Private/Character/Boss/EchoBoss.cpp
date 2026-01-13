@@ -1,7 +1,12 @@
 #include "Character/Boss/EchoBoss.h"
+
+#include "AbilitySystemComponent.h"
+#include "AttributeSet/BaseAttributeSet.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "UI/AshHUD.h"
+#include "UI/PlayerHUDWidget.h"
 
 AEchoBoss::AEchoBoss()
 {
@@ -51,6 +56,32 @@ AEchoBoss::AEchoBoss()
 	{
 		GetCapsuleComponent()->SetCapsuleSize(60.f, 135.f);
 	}
+
+	AbilitySystemComponent = CreateDefaultSubobject<UAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
+    
+	// 创建属性集
+	AttributeSet = CreateDefaultSubobject<UBaseAttributeSet>(TEXT("AttributeSet"));
+}
+
+void AEchoBoss::ApplyDamageToSelf()
+{
+	if (AbilitySystemComponent && DamageGEClass)
+	{
+		// 1. 创建上下文
+		FGameplayEffectContextHandle Context = AbilitySystemComponent->MakeEffectContext();
+		Context.AddSourceObject(this);
+
+		// 2. 创建 Spec
+		FGameplayEffectSpecHandle SpecHandle = AbilitySystemComponent->MakeOutgoingSpec(DamageGEClass, 1.0f, Context);
+
+		if (SpecHandle.IsValid())
+		{
+			// 3. 应用伤害
+			AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+            
+			UE_LOG(LogTemp, Warning, TEXT("Boss took damage! Check Health Bar."));
+		}
+	}
 }
 
 void AEchoBoss::BeginPlay()
@@ -66,5 +97,69 @@ void AEchoBoss::BeginPlay()
 		BossHelm->SetLeaderPoseComponent(GetMesh());
 		BossCap->SetLeaderPoseComponent(GetMesh());
 		BossGloves->SetLeaderPoseComponent(GetMesh());
+	}
+
+	
+
+	if (AbilitySystemComponent && AttributeSet)
+	{
+		// 核心绑定代码：监听 Health 属性的变化
+		AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(
+			AttributeSet->GetHealthAttribute()).AddUObject(this, &AEchoBoss::OnHealthChanged);
+	}
+	//test
+	APlayerController* PC = GetWorld()->GetFirstPlayerController();
+	if (!PC) return;
+	
+	AAshHUD* AshHUD = Cast<AAshHUD>(PC->GetHUD());
+	if (!AshHUD) return;
+
+	// 2. 检查 Boss 血条是否已创建，如果没有则初始化 (InitBossHealthBar 是我们在 AshHUD 里写的函数)
+	if (!AshHUD->BossHealthWidget)
+	{
+		AshHUD->InitBossHealthBar();
+
+	}
+
+	// 确保 ASC 存在且已经指定了 GE 类
+	if (AbilitySystemComponent && DefaultAttributeGE)
+	{
+		// 创建一个 Effect 上下文
+		FGameplayEffectContextHandle EffectContext = AbilitySystemComponent->MakeEffectContext();
+		EffectContext.AddSourceObject(this);
+
+		// 创建一个具体的 Effect 句柄
+		FGameplayEffectSpecHandle SpecHandle = AbilitySystemComponent->MakeOutgoingSpec(DefaultAttributeGE, 1.0f, EffectContext);
+
+		if (SpecHandle.IsValid())
+		{
+			// 真正把 1000 血量“贴”到 Boss 身上
+			AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+			
+		}
+	}
+}
+
+void AEchoBoss::OnHealthChanged(const FOnAttributeChangeData& Data)
+{
+	// 1. 获取本地玩家的控制器和 HUD
+	UE_LOG(LogTemp, Warning, TEXT("GAS Debug: OnHealthChanged Triggered! New Value: %f"), Data.NewValue);
+	APlayerController* PC = GetWorld()->GetFirstPlayerController();
+	if (!PC) return;
+
+	AAshHUD* AshHUD = Cast<AAshHUD>(PC->GetHUD());
+	if (!AshHUD) return;
+
+	// 2. 检查 Boss 血条是否已创建，如果没有则初始化 (InitBossHealthBar 是我们在 AshHUD 里写的函数)
+	if (!AshHUD->BossHealthWidget)
+	{
+		AshHUD->InitBossHealthBar();
+	}
+
+	// 3. 推送最新的血量百分比给 UI
+	if (AshHUD->BossHealthWidget)
+	{
+		// 这里会自动触发蓝图里的 Event On Health Percent Changed
+		AshHUD->BossHealthWidget->RefreshHealth(Data.NewValue, AttributeSet->GetMaxHealth());
 	}
 }

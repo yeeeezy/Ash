@@ -4,6 +4,14 @@
 #include "Animation/AnimInstance.h"
 #include "AshAnimInstance.generated.h"
 
+// 定义武器状态枚举
+UENUM(BlueprintType)
+enum class EWeaponState : uint8
+{
+	Unequipped    UMETA(DisplayName = "Unequipped"),
+	SwordEquipped UMETA(DisplayName = "Sword Equipped")
+};
+
 UCLASS()
 class ASH_API UAshAnimInstance : public UAnimInstance
 {
@@ -13,7 +21,18 @@ public:
 	// 每一帧更新数据，类似 Tick
 	virtual void NativeUpdateAnimation(float DeltaSeconds) override;
 
+	UFUNCTION(BlueprintCallable, Category = "State")
+	void UpdateWeaponState(EWeaponState NewState) { WeaponState = NewState; }
+	
 protected:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
+	float Direction; // 用于驱动混合空间的横轴
+
+	// 设置为 BlueprintReadOnly，方便在动画蓝图中使用 Blend Poses by Enum
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "State")
+	EWeaponState WeaponState;
+
+
 	// 对应之前在蓝图中创建的变量
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	float GroundSpeed;

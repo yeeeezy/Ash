@@ -4,10 +4,12 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "Animation/AshAnimInstance.h"
 #include "AttributeSet/BaseAttributeSet.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Character/Boss/EchoBoss.h"
-
+#include "UI/AshHUD.h"
+#include "UI/PlayerHUDWidget.h"
 
 APlayerCharacter::APlayerCharacter()
 {
@@ -47,7 +49,7 @@ APlayerCharacter::APlayerCharacter()
     GetCharacterMovement()->bOrientRotationToMovement = true;
     GetCharacterMovement()->bUseControllerDesiredRotation = false;
     bUseControllerRotationYaw = false;
-    GetCharacterMovement()->RotationRate = FRotator(0.f, 3000.f, 0.f);
+    GetCharacterMovement()->RotationRate = FRotator(0.f, 400.f, 0.f);
 
     //Jump
     JumpMaxCount = 1;
@@ -55,6 +57,19 @@ APlayerCharacter::APlayerCharacter()
     AbilitySystemComponent = CreateDefaultSubobject<UAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
 
     AttributeSet = CreateDefaultSubobject<UBaseAttributeSet>(TEXT("AttributeSet"));
+}
+
+void APlayerCharacter::EquipSword()
+{
+    // ... 原有的生成剑、挂载 Socket 的逻辑 ...
+
+    // 获取动画实例并更新状态
+    if (UAshAnimInstance* AnimInst = Cast<UAshAnimInstance>(GetMesh()->GetAnimInstance()))
+    {
+        AnimInst->UpdateWeaponState(EWeaponState::SwordEquipped);
+    }
+    
+    // 顺便触发你之前的溶解效果逻辑
 }
 
 void APlayerCharacter::BeginPlay()
@@ -76,8 +91,12 @@ void APlayerCharacter::BeginPlay()
         // 设置初始血量为 100
         AttributeSet->InitHealth(100.f);
         AttributeSet->InitMaxHealth(100.f);
+        AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(
+            UBaseAttributeSet::GetHealthAttribute()).AddUObject(this, &APlayerCharacter::HealthChanged);
         
     }
+
+    
 }
 
 
@@ -96,6 +115,26 @@ void APlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 void APlayerCharacter::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
+}
+
+void APlayerCharacter::HealthChanged(const FOnAttributeChangeData& Data)
+{
+
+    OnHealthChanged.Broadcast(Data.NewValue, AttributeSet->GetMaxHealth());
+
+    APlayerController* PC = Cast<APlayerController>(GetController());
+    if (PC)
+    {
+        // 获取我们在第二步创建的自定义 HUD
+        AAshHUD* AshHUD = Cast<AAshHUD>(PC->GetHUD());
+        
+        // 确保 HUD 存在且其中的 PlayerHUD 实例已创建
+        if (AshHUD && AshHUD->PlayerHUD)
+        {
+            // 直接调用你刚刚在 UI 的 cpp 中实现的计算逻辑
+            AshHUD->PlayerHUD->RefreshHealth(Data.NewValue, AttributeSet->GetMaxHealth());
+        }
+    }
 }
 
 void APlayerCharacter::OnSprintStarted()
