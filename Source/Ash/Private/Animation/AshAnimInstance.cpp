@@ -1,6 +1,7 @@
 #include "Animation/AshAnimInstance.h"
 
 #include "KismetAnimationLibrary.h"
+#include "Character/PlayerCharacter.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
@@ -45,4 +46,15 @@ void UAshAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 		bIsRunning = (MaxSpeed > 250.f); 
 		
 	}
+}
+
+void UAshAnimInstance::AnimNotify_AttachWeapon()
+{
+
+	APlayerCharacter* Character = Cast<APlayerCharacter>(TryGetPawnOwner());
+	if (Character)
+	{
+		Character->HandleWeaponAttachment(); 
+	}
+	
 }

@@ -23,19 +23,26 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "State")
 	void UpdateWeaponState(EWeaponState NewState) { WeaponState = NewState; }
+
+	UFUNCTION()
+	void AnimNotify_AttachWeapon(); // 名称必须与 Notify 名字一致
+
+	// 对应之前在蓝图中创建的变量
+	UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	float GroundSpeed;
 	
-protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
 	float Direction; // 用于驱动混合空间的横轴
+	
+protected:
+
 
 	// 设置为 BlueprintReadOnly，方便在动画蓝图中使用 Blend Poses by Enum
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "State")
 	EWeaponState WeaponState;
 
 
-	// 对应之前在蓝图中创建的变量
-	UPROPERTY(BlueprintReadOnly, Category = "Movement")
-	float GroundSpeed;
+
 
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	bool bIsTargeting;

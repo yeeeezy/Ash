@@ -5,6 +5,7 @@
 #include "InputActionValue.h"
 #include "AbilitySystemInterface.h"
 #include "GameplayEffectTypes.h"
+#include "Animation/AshAnimInstance.h"
 #include "PlayerCharacter.generated.h"
 
 /** 前向声明 */
@@ -28,9 +29,30 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "Combat")
     void EquipSword();
+
+    UFUNCTION(BlueprintCallable, Category = "Combat")
+    void UnequipSword();
+
+    // 供 AnimInstance 调用的挂载函数
+    void HandleWeaponAttachment();
     
 
 protected:
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat")
+    EWeaponState WeaponState;
+
+    // 存储生成的武器实例
+    UPROPERTY(VisibleAnywhere, Category = "Combat")
+    AActor* EquippedSword;
+
+    // 在蓝图中指定要生成的武器类
+    UPROPERTY(EditAnywhere, Category = "Combat")
+    TSubclassOf<AActor> SwordClass;
+    
+    UPROPERTY(EditAnywhere, Category = "Combat")
+    UAnimMontage* EquipMontage;
+    
     /** 摄像机摇臂 */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Ash|Camera")
     TObjectPtr<USpringArmComponent> CameraBoom;
@@ -71,6 +93,18 @@ protected:
     /** 输入回调 */
     void Move(const FInputActionValue& Value);
     void Look(const FInputActionValue& Value);
+
+    /** 翻滚蒙太奇资源引用 */
+    UPROPERTY(EditAnywhere, Category = "Combat")
+    UAnimMontage* RollLeftMontage;
+
+    UPROPERTY(EditAnywhere, Category = "Combat")
+    UAnimMontage* RollRightMontage;
+
+    /** 执行翻滚逻辑的函数 */
+    UFUNCTION(BlueprintCallable, Category = "Combat | Actions")
+    void PlayRollMontage();
+    
     void OnJumpedStarted();
     
 
