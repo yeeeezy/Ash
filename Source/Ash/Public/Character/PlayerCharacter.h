@@ -79,6 +79,10 @@ protected:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ash|Input")
     TObjectPtr<UInputAction> JumpAction;
 
+    /** 攻击输入动作 */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ash|Input")
+    TObjectPtr<UInputAction> AttackAction;
+
     /** 速度变量 */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ash|Attributes")
     float WalkSpeed = 250.f;
@@ -90,9 +94,14 @@ protected:
     void OnSprintStarted();
     void OnSprintEnded();
 
+    /** 处理攻击输入按下后的逻辑 */
+    void Input_AttackPressed();
+
     /** 输入回调 */
     void Move(const FInputActionValue& Value);
     void Look(const FInputActionValue& Value);
+
+
 
     /** 翻滚蒙太奇资源引用 */
     UPROPERTY(EditAnywhere, Category = "Combat")
@@ -116,6 +125,9 @@ protected:
     // ASC 组件是 GAS 的核心
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GAS")
     class UAbilitySystemComponent* AbilitySystemComponent;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Abilities")
+    TSubclassOf<class UGameplayAbility> DefaultMeleeAbility;
 
     // 属性集合
     UPROPERTY()

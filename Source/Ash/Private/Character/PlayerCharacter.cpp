@@ -64,20 +64,37 @@ APlayerCharacter::APlayerCharacter()
 
 void APlayerCharacter::EquipSword()
 {
-    // 1. 播放蒙太奇
     if (EquipMontage)
     {
         PlayAnimMontage(EquipMontage);
+
+        // --- 核心改动：一键封锁所有游戏内输入 ---
+        if (APlayerController* PC = Cast<APlayerController>(GetController()))
+        {
+            // 切换到 UIOnly 模式，不处理任何游戏操作
+            FInputModeUIOnly InputMode;
+            // 设置锁定鼠标到视口（可选，防止鼠标滑出屏幕）
+            InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+            
+            PC->SetInputMode(InputMode);
+
+            // 1.5s 后恢复 GameOnly 模式
+            FTimerHandle TimerHandle;
+            GetWorldTimerManager().SetTimer(TimerHandle, FTimerDelegate::CreateLambda([PC]()
+            {
+                if (PC)
+                {
+                    // 恢复成正常的“仅游戏”模式，按键和鼠标点击重新回到角色逻辑
+                    FInputModeGameOnly GameMode;
+                    PC->SetInputMode(GameMode);
+                }
+            }), 1.5f, false);
+        }
     }
 
     SprintSpeed = 400.f;
     WalkSpeed = 150.f;
     GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
-    
-
-
-    
-    // 顺便触发你之前的溶解效果逻辑
 }
 
 void APlayerCharacter::UnequipSword()
@@ -143,6 +160,13 @@ void APlayerCharacter::BeginPlay()
 
 
     EquipSword();
+
+    if (GetAbilitySystemComponent() && DefaultMeleeAbility)
+    {
+        // 赋予能力。注意：最后一个参数是 InputID，我们假设设为 1
+        FGameplayAbilitySpec AttackSpec(DefaultMeleeAbility, 1, 1); 
+        GetAbilitySystemComponent()->GiveAbility(AttackSpec);
+    }
     
 }
 
@@ -156,6 +180,8 @@ void APlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
        EIC->BindAction(SprintAction, ETriggerEvent::Started, this, &APlayerCharacter::OnSprintStarted);
        EIC->BindAction(SprintAction, ETriggerEvent::Completed, this, &APlayerCharacter::OnSprintEnded);
         EIC->BindAction(JumpAction, ETriggerEvent::Started, this, &APlayerCharacter::OnJumpedStarted);
+   
+        EIC->BindAction(AttackAction, ETriggerEvent::Started, this, &APlayerCharacter::Input_AttackPressed);
     }
 }
 
@@ -192,6 +218,21 @@ void APlayerCharacter::OnSprintStarted()
 void APlayerCharacter::OnSprintEnded()
 {
     GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
+}
+
+void APlayerCharacter::Input_AttackPressed()
+{
+    
+    // GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Cyan, TEXT("Input: Left Mouse Pressed!"));
+    if (GetAbilitySystemComponent())
+    {
+        /** * 通知 ASC 按下了 InputID 为 1 的按键。
+         * 这会触发你在 GiveAbility 时指定的 InputID 为 1 的能力，
+         * 或者是触发正在运行的能力中的 WaitInputPress 任务。
+         */
+        GetAbilitySystemComponent()->AbilityLocalInputPressed(1);
+    }
+    
 }
 
 void APlayerCharacter::Move(const FInputActionValue& Value)
