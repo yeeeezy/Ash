@@ -34,4 +34,19 @@ protected:
 	bool bIsComboTransition = false;
 
 	int32 CurrentComboStep = 0;
+
+	/** 1. 核心回调函数：当 ANS 发来信号时，这个函数会被调用 */
+	UFUNCTION()
+	void OnHitEventReceived(FGameplayEventData Payload);
+
+	/** 2. 击中黑名单：确保这一刀挥过去，同一个怪只会被扣一次血 */
+	UPROPERTY()
+	TArray<AActor*> HitActors;
+
+	/** 3. 伤害效果：在蓝图 Details 面板里指定具体的 GameplayEffect (如 GE_Damage) */
+	UPROPERTY(EditAnywhere, Category = "Combat")
+	TSubclassOf<UGameplayEffect> DamageEffectClass;
+
+	UPROPERTY(EditAnywhere, Category = "Combat")
+	float BaseDamage = 50.0f; // 基础伤害设为 20
 };
