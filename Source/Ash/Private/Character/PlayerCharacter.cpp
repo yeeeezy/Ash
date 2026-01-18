@@ -69,27 +69,27 @@ void APlayerCharacter::EquipSword()
         PlayAnimMontage(EquipMontage);
 
         // --- 核心改动：一键封锁所有游戏内输入 ---
-        if (APlayerController* PC = Cast<APlayerController>(GetController()))
-        {
-            // 切换到 UIOnly 模式，不处理任何游戏操作
-            FInputModeUIOnly InputMode;
-            // 设置锁定鼠标到视口（可选，防止鼠标滑出屏幕）
-            InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-            
-            PC->SetInputMode(InputMode);
-
-            // 1.5s 后恢复 GameOnly 模式
-            FTimerHandle TimerHandle;
-            GetWorldTimerManager().SetTimer(TimerHandle, FTimerDelegate::CreateLambda([PC]()
-            {
-                if (PC)
-                {
-                    // 恢复成正常的“仅游戏”模式，按键和鼠标点击重新回到角色逻辑
-                    FInputModeGameOnly GameMode;
-                    PC->SetInputMode(GameMode);
-                }
-            }), 1.5f, false);
-        }
+        // if (APlayerController* PC = Cast<APlayerController>(GetController()))
+        // {
+        //     // 切换到 UIOnly 模式，不处理任何游戏操作
+        //     FInputModeUIOnly InputMode;
+        //     // 设置锁定鼠标到视口（可选，防止鼠标滑出屏幕）
+        //     InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+        //     
+        //     PC->SetInputMode(InputMode);
+        //
+        //     // 1.5s 后恢复 GameOnly 模式
+        //     FTimerHandle TimerHandle;
+        //     GetWorldTimerManager().SetTimer(TimerHandle, FTimerDelegate::CreateLambda([PC]()
+        //     {
+        //         if (PC)
+        //         {
+        //             // 恢复成正常的“仅游戏”模式，按键和鼠标点击重新回到角色逻辑
+        //             FInputModeGameOnly GameMode;
+        //             PC->SetInputMode(GameMode);
+        //         }
+        //     }), 1.5f, false);
+        // }
     }
 
     SprintSpeed = 400.f;
@@ -134,6 +134,25 @@ void APlayerCharacter::HandleWeaponAttachment()
     
 }
 
+void APlayerCharacter::EnableTargetLock(AActor* NewTarget)
+{
+    CurrentLockedTarget = NewTarget;
+    bIsAutoLocking = true;
+    
+    // 锁定时的移动配置：不自动朝向移动方向，而是允许侧移
+    GetCharacterMovement()->bOrientRotationToMovement = false;
+}
+
+void APlayerCharacter::DisableTargetLock()
+{
+
+    CurrentLockedTarget = nullptr;
+    bIsAutoLocking = false;
+    
+    // 恢复自由移动朝向
+    GetCharacterMovement()->bOrientRotationToMovement = true;
+}
+
 void APlayerCharacter::BeginPlay()
 {
     Super::BeginPlay();
@@ -164,9 +183,26 @@ void APlayerCharacter::BeginPlay()
     if (GetAbilitySystemComponent() && DefaultMeleeAbility)
     {
         // 赋予能力。注意：最后一个参数是 InputID，我们假设设为 1
-        FGameplayAbilitySpec AttackSpec(DefaultMeleeAbility, 1, 1); 
+        FGameplayAbilitySpec AttackSpec(DefaultMeleeAbility, 1, static_cast<int32>(EAbilityInputID::Attack)); 
         GetAbilitySystemComponent()->GiveAbility(AttackSpec);
     }
+
+    if (AbilitySystemComponent && DodgeAbilityClass)
+    {
+        AbilitySystemComponent->GiveAbility(FGameplayAbilitySpec(
+            DodgeAbilityClass, 1, static_cast<int32>(EAbilityInputID::Dodge)));
+
+
+    }
+
+
+    if (AbilitySystemComponent && DeathAbilityClass)
+    {
+        // 死亡能力不设 InputID，传 0 或 -1
+        FGameplayAbilitySpec DeathSpec(DeathAbilityClass, 1);
+        AbilitySystemComponent->GiveAbility(DeathSpec);
+    }
+    
     
 }
 
@@ -188,6 +224,31 @@ void APlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 void APlayerCharacter::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
+    if (bIsAutoLocking && CurrentLockedTarget)
+    {
+        // 1. 获取位置信息
+        FVector PlayerLoc = GetActorLocation();
+        // 稍微抬高一点目标点，看向 Boss 胸口
+        FVector TargetLoc = CurrentLockedTarget->GetActorLocation() + FVector(0.f, 0.f, 50.f);
+        
+        // 2. 计算朝向旋转
+        FRotator LookAtRot = UKismetMathLibrary::FindLookAtRotation(PlayerLoc, TargetLoc);
+        
+        // 3. 构造最终旋转：强制俯视 Pitch (-30度)，强制朝向 Yaw
+        float FixedPitch = -30.0f; 
+        FRotator FinalLockRot = FRotator(FixedPitch, LookAtRot.Yaw, 0.f);
+
+        // 4. 瞬间设置控制器旋转
+        if (GetController())
+        {
+            GetController()->SetControlRotation(FinalLockRot);
+        }
+
+        // 5. 【关键】强制身体朝向同步
+        // 既然要一直朝向，我们直接强制让 Actor 的 Yaw 等于控制器的 Yaw
+        FRotator ActorRot = GetActorRotation();
+        SetActorRotation(FRotator(0.f, LookAtRot.Yaw, 0.f));
+    }
 }
 
 void APlayerCharacter::HealthChanged(const FOnAttributeChangeData& Data)
@@ -208,6 +269,24 @@ void APlayerCharacter::HealthChanged(const FOnAttributeChangeData& Data)
             AshHUD->PlayerHUD->RefreshHealth(Data.NewValue, AttributeSet->GetMaxHealth());
         }
     }
+
+    // 2. 新增：死亡判定并发送 Gameplay Event
+    if (Data.NewValue <= 0.0f)
+    {
+        if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Orange, TEXT("Health is ZERO! Sending Event..."));
+        FGameplayTag DeathEventTag = FGameplayTag::RequestGameplayTag(FName("Event.Character.Dead"));
+        
+        FGameplayEventData Payload;
+        Payload.EventTag = DeathEventTag;
+        Payload.Instigator = this; // 这里的 Instigator 可以根据需要设置为伤害来源
+        Payload.Target = this;
+
+        // 发送事件以激活 GA_Character_Death
+        if (GetAbilitySystemComponent())
+        {
+            GetAbilitySystemComponent()->HandleGameplayEvent(DeathEventTag, &Payload);
+        }
+    }
 }
 
 void APlayerCharacter::OnSprintStarted()
@@ -223,14 +302,14 @@ void APlayerCharacter::OnSprintEnded()
 void APlayerCharacter::Input_AttackPressed()
 {
     
-    // GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Cyan, TEXT("Input: Left Mouse Pressed!"));
+
     if (GetAbilitySystemComponent())
     {
         /** * 通知 ASC 按下了 InputID 为 1 的按键。
          * 这会触发你在 GiveAbility 时指定的 InputID 为 1 的能力，
          * 或者是触发正在运行的能力中的 WaitInputPress 任务。
          */
-        GetAbilitySystemComponent()->AbilityLocalInputPressed(1);
+        GetAbilitySystemComponent()->AbilityLocalInputPressed(static_cast<int32>(EAbilityInputID::Attack));
     }
     
 }
@@ -261,79 +340,11 @@ void APlayerCharacter::Look(const FInputActionValue& Value)
     }
 }
 
-void APlayerCharacter::PlayRollMontage()
-{
 
-    // if (GetCharacterMovement()->IsFalling()) return;
-    //
-    // UAshAnimInstance* AnimInst = Cast<UAshAnimInstance>(GetMesh()->GetAnimInstance());
-    // if (AnimInst)
-    // {
-    //     // 逻辑清晰：直接根据条件播不同的文件
-    //     if (AnimInst->GroundSpeed < 10.f || AnimInst->Direction <= 0.f)
-    //     {
-    //         PlayAnimMontage(RollLeftMontage);
-    //     }
-    //     else
-    //     {
-    //         PlayAnimMontage(RollRightMontage);
-    //     }
-    // }
-
-    if (GetCharacterMovement()->IsFalling()) return;
-
-    UAshAnimInstance* AnimInst = Cast<UAshAnimInstance>(GetMesh()->GetAnimInstance());
-    if (AnimInst)
-    {
-        // 2. 状态检查：如果当前正在播放左闪或右闪蒙太奇，直接返回，不执行后续逻辑
-        // 这样在一次翻滚动作结束前，按任何键都不会触发新的翻滚
-        if (AnimInst->Montage_IsPlaying(RollLeftMontage) || 
-            AnimInst->Montage_IsPlaying(RollRightMontage))
-        {
-            return;
-        }
-        // --- 1. 定义闪避的速度（固定值） ---
-        // 数值越大，闪避距离越远。通常 1200-1800 比较合适
-        float RollImpulse = 1500.f; 
-        FVector LaunchDirection = FVector::ZeroVector;
-
-        // --- 2. 播放动画并确定发射方向 ---
-        // 原地 (GroundSpeed < 10) 或向左 (Direction <= 0) -> 向左闪
-        if (AnimInst->GroundSpeed < 10.f || AnimInst->Direction <= 0.f)
-        {
-            if (RollLeftMontage)
-            {
-                PlayAnimMontage(RollLeftMontage);
-                // 获取角色右向量的反方向，即左方向
-                LaunchDirection = -GetActorRightVector();
-            }
-        }
-        else // 其他情况 -> 向右闪
-        {
-            if (RollRightMontage)
-            {
-                PlayAnimMontage(RollRightMontage);
-                // 获取角色右向量
-                LaunchDirection = GetActorRightVector();
-            }
-        }
-
-        // --- 3. 执行发射 ---
-        if (!LaunchDirection.IsNearlyZero())
-        {
-            // LaunchCharacter(速度向量, 是否覆盖水平速度, 是否覆盖垂直速度)
-            // 两个 true 确保了无论你之前在做什么，闪避瞬间的速度都是这个固定值
-            LaunchCharacter(LaunchDirection * RollImpulse, true, true);
-        }
-    }
-}
 
 void APlayerCharacter::OnJumpedStarted()
 {
     
-
-
-
     if (WeaponState == EWeaponState::Unequipped)
     {
         Jump();
@@ -355,6 +366,12 @@ void APlayerCharacter::OnJumpedStarted()
     else if (WeaponState == EWeaponState::SwordEquipped)
     {
         // 已装备武器：执行翻滚
-        PlayRollMontage();
+        // PlayRollMontage();
+        if (AbilitySystemComponent)
+        {
+            // 仅仅发送信号，剩下的交给 GA_Dodge 
+            AbilitySystemComponent->AbilityLocalInputPressed(static_cast<int32>(EAbilityInputID::Dodge));
+        }
     }
+    
 }

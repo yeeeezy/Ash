@@ -33,10 +33,14 @@ public:
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
 	float Direction; // 用于驱动混合空间的横轴
+
+	UPROPERTY(BlueprintReadOnly, Category = "States")
+	bool bIsDead = false;
 	
 protected:
 
-
+	
+	
 	// 设置为 BlueprintReadOnly，方便在动画蓝图中使用 Blend Poses by Enum
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "State")
 	EWeaponState WeaponState;

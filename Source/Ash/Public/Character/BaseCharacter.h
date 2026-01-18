@@ -12,6 +12,11 @@ class ASH_API ABaseCharacter : public ACharacter
 public:
 	ABaseCharacter();
 	virtual void Tick(float DeltaTime) override;
+	// 设置死亡状态的函数
+	void SetIsDead(bool bNewState) { bIsDead = bNewState; }
+    
+	// 获取死亡状态（可选）
+	bool IsDead() const { return bIsDead; }
 
 protected:
 	/** 基础属性：生命值 */

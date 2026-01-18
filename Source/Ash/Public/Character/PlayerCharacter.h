@@ -14,6 +14,17 @@ class UCameraComponent;
 class UInputMappingContext;
 class UInputAction;
 
+// --- 在这里定义枚举 ---
+UENUM(BlueprintType)
+enum class EAbilityInputID : uint8
+{
+    None,
+    Confirm,
+    Cancel,
+    Attack,  // 对应你的轻击
+    Dodge    // 对应你的闪避
+};
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnHealthChangedSignature, float, NewHealth, float, MaxHealth);
 UCLASS()
 class ASH_API APlayerCharacter : public ABaseCharacter, public IAbilitySystemInterface
@@ -35,9 +46,18 @@ public:
 
     // 供 AnimInstance 调用的挂载函数
     void HandleWeaponAttachment();
+
+    void EnableTargetLock(AActor* NewTarget);
+    void DisableTargetLock();
     
 
 protected:
+
+    
+    UPROPERTY(BlueprintReadOnly)
+    AActor* CurrentLockedTarget;
+
+    bool bIsAutoLocking = false;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat")
     EWeaponState WeaponState;
@@ -100,19 +120,7 @@ protected:
     /** 输入回调 */
     void Move(const FInputActionValue& Value);
     void Look(const FInputActionValue& Value);
-
-
-
-    /** 翻滚蒙太奇资源引用 */
-    UPROPERTY(EditAnywhere, Category = "Combat")
-    UAnimMontage* RollLeftMontage;
-
-    UPROPERTY(EditAnywhere, Category = "Combat")
-    UAnimMontage* RollRightMontage;
-
-    /** 执行翻滚逻辑的函数 */
-    UFUNCTION(BlueprintCallable, Category = "Combat | Actions")
-    void PlayRollMontage();
+    
     
     void OnJumpedStarted();
     
@@ -129,6 +137,14 @@ protected:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Abilities")
     TSubclassOf<class UGameplayAbility> DefaultMeleeAbility;
 
+    // 闪避技能类 (在蓝图里指定 GA_Dodge)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Abilities")
+    TSubclassOf<class UGameplayAbility> DodgeAbilityClass;
+
+    // PlayerCharacter.h 中
+    UPROPERTY(EditAnywhere, Category = "Abilities")
+    TSubclassOf<class UGameplayAbility> DeathAbilityClass;
+    
     // 属性集合
     UPROPERTY()
     class UBaseAttributeSet* AttributeSet;
@@ -137,17 +153,8 @@ protected:
     virtual class UAbilitySystemComponent* GetAbilitySystemComponent() const override { return AbilitySystemComponent; }
 
 protected:
-    // 锁定范围
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
-    float LockOnRange = 1000.f;
 
-    // 旋转平滑速度
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
-    float RotationSmoothSpeed = 5.f;
 
-    // 当前锁定的 Boss 目标
-    UPROPERTY(BlueprintReadWrite, Category = "Combat")
-    class AEchoBoss* TargetBoss;
 
     virtual void Tick(float DeltaTime) override;
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animations", meta = (AllowPrivateAccess = "true"))

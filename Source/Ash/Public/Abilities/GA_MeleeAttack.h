@@ -48,5 +48,5 @@ protected:
 	TSubclassOf<UGameplayEffect> DamageEffectClass;
 
 	UPROPERTY(EditAnywhere, Category = "Combat")
-	float BaseDamage = 50.0f; // 基础伤害设为 20
+	float BaseDamage = 10000.0f; // 基础伤害设为 20
 };
