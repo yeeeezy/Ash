@@ -8,6 +8,7 @@
 #include "BrainComponent.h"
 #include "GameFramework/Character.h"
 #include "Components/CapsuleComponent.h"
+#include "UI/AshHUD.h"
 
 UGA_Boss_Death::UGA_Boss_Death()
 {

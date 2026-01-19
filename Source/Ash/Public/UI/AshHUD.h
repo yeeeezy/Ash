@@ -35,7 +35,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "GAS|UI")
 	void InitBossHealthBar();
 
+	UFUNCTION(BlueprintCallable, Category = "ash|UI")
+	void ShowGameResult(bool bIsWin);
+
 protected:
 	/** 游戏开始时创建 UI */
 	virtual void BeginPlay() override;
+
+	// 1. 在编辑器里指定你的游戏结果 UI 蓝图类 (WBP_GameResult)
+	UPROPERTY(EditAnywhere, Category = "ash|UI")
+	TSubclassOf<UUserWidget> GameResultClass;
+
+	// 存储实例，防止重复创建
+	UPROPERTY()
+	UUserWidget* GameResultWidget;
 };

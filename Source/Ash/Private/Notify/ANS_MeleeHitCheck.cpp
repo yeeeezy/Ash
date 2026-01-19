@@ -66,6 +66,8 @@ void UANS_MeleeHitCheck::NotifyTick(USkeletalMeshComponent* MeshComp, UAnimSeque
 	// 5. 安全检查 4: 只有在标签合法时才发送事件
 	if (bHit && EventTag.IsValid())
 	{
+		// if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("[SUCCESS] Damage applied to: %s"));
+
 		for (const FHitResult& Hit : OutHits)
 		{
 			FGameplayEventData Payload;

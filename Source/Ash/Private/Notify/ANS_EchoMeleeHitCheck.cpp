@@ -20,6 +20,8 @@ void UANS_EchoMeleeHitCheck::NotifyTick(USkeletalMeshComponent* MeshComp, UAnimS
 {
     Super::NotifyTick(MeshComp, Animation, FrameDeltaTime, EventReference);
 
+    // if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("[SUCCESS] Damage applied to: %s"));
+
     if (!MeshComp || !MeshComp->GetOwner()) return;
     AActor* OwnerActor = MeshComp->GetOwner();
 
@@ -73,7 +75,7 @@ void UANS_EchoMeleeHitCheck::NotifyTick(USkeletalMeshComponent* MeshComp, UAnimS
                 // 发送信号
                 UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(OwnerActor, EventTag, Payload);
                 
-                // if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Cyan, FString::Printf(TEXT("ANS Hit: %s"), *Victim->GetName()));
+                if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Cyan, FString::Printf(TEXT("ANS Hit: %s"), *Victim->GetName()));
             }
         }
     }

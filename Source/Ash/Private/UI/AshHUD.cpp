@@ -1,6 +1,7 @@
 #include "UI/AshHUD.h"
 #include "UI/PlayerHUDWidget.h"
 #include "Blueprint/UserWidget.h"
+#include "Kismet/GameplayStatics.h"
 
 
 void AAshHUD::InitBossHealthBar()
@@ -12,6 +13,40 @@ void AAshHUD::InitBossHealthBar()
 		if (BossHealthWidget)
 		{
 			BossHealthWidget->AddToViewport();
+		}
+	}
+}
+
+void AAshHUD::ShowGameResult(bool bIsWin)
+{
+	if (GameResultClass)
+	{
+		// 创建并显示
+		GameResultWidget = CreateWidget<UUserWidget>(GetOwningPlayerController(), GameResultClass);
+		if (GameResultWidget)
+		{
+			GameResultWidget->AddToViewport();
+
+			// ash: 调用蓝图里的 SetupUI 函数来设置“成功”或“失败”的文本/颜色
+			UFunction* Func = GameResultWidget->FindFunction(FName("SetupUI"));
+			if (Func)
+			{
+				GameResultWidget->ProcessEvent(Func, &bIsWin);
+			}
+
+			// 3. 游戏交互处理
+			APlayerController* PC = GetOwningPlayerController();
+			if (PC)
+			{
+				// 显示鼠标并切换到 UI 模式
+				FInputModeUIOnly InputMode;
+				InputMode.SetWidgetToFocus(GameResultWidget->TakeWidget());
+				PC->SetInputMode(InputMode);
+				PC->bShowMouseCursor = true;
+                
+				// 暂停游戏（如果需要的话）
+				UGameplayStatics::SetGamePaused(GetWorld(), true);
+			}
 		}
 	}
 }

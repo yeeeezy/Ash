@@ -67,29 +67,6 @@ void APlayerCharacter::EquipSword()
     if (EquipMontage)
     {
         PlayAnimMontage(EquipMontage);
-
-        // --- 核心改动：一键封锁所有游戏内输入 ---
-        // if (APlayerController* PC = Cast<APlayerController>(GetController()))
-        // {
-        //     // 切换到 UIOnly 模式，不处理任何游戏操作
-        //     FInputModeUIOnly InputMode;
-        //     // 设置锁定鼠标到视口（可选，防止鼠标滑出屏幕）
-        //     InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-        //     
-        //     PC->SetInputMode(InputMode);
-        //
-        //     // 1.5s 后恢复 GameOnly 模式
-        //     FTimerHandle TimerHandle;
-        //     GetWorldTimerManager().SetTimer(TimerHandle, FTimerDelegate::CreateLambda([PC]()
-        //     {
-        //         if (PC)
-        //         {
-        //             // 恢复成正常的“仅游戏”模式，按键和鼠标点击重新回到角色逻辑
-        //             FInputModeGameOnly GameMode;
-        //             PC->SetInputMode(GameMode);
-        //         }
-        //     }), 1.5f, false);
-        // }
     }
 
     SprintSpeed = 400.f;
@@ -224,29 +201,43 @@ void APlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 void APlayerCharacter::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
+    
+    // 如果开启了锁定，且有目标（这里的 CurrentLockedTarget 就是你的 Boss）
     if (bIsAutoLocking && CurrentLockedTarget)
     {
         // 1. 获取位置信息
         FVector PlayerLoc = GetActorLocation();
-        // 稍微抬高一点目标点，看向 Boss 胸口
+        // 看向 Boss 中心（稍微抬高一点）
         FVector TargetLoc = CurrentLockedTarget->GetActorLocation() + FVector(0.f, 0.f, 50.f);
         
-        // 2. 计算朝向旋转
+        // 2. 计算基础朝向旋转
         FRotator LookAtRot = UKismetMathLibrary::FindLookAtRotation(PlayerLoc, TargetLoc);
         
-        // 3. 构造最终旋转：强制俯视 Pitch (-30度)，强制朝向 Yaw
-        float FixedPitch = -30.0f; 
-        FRotator FinalLockRot = FRotator(FixedPitch, LookAtRot.Yaw, 0.f);
+        // --- ash 核心逻辑：动态 Pitch 调整 ---
+        // 3. 计算高度差：Boss 高度 - 玩家高度
+        float HeightDiff = TargetLoc.Z - PlayerLoc.Z;
+        
+        // 映射逻辑：高度差越大，Pitch 越往正值走（仰视）
+        // 假设高度差在 0 到 1000 之间波动
+        // 我们把这个差值映射到 [MinLockPitch, MaxLockPitch]
+        float DynamicPitch = FMath::GetMappedRangeValueClamped(
+            FVector2D(0.f, 300.f), 
+            FVector2D(MinLockPitch, MaxLockPitch), 
+            HeightDiff
+        );
 
-        // 4. 瞬间设置控制器旋转
+        // 4. 构造最终旋转：使用动态计算的 Pitch
+        FRotator FinalLockRot = FRotator(DynamicPitch, LookAtRot.Yaw, 0.f);
+
+        // 5. 平滑设置控制器旋转（加入插值让镜头不那么抖）
         if (GetController())
         {
-            GetController()->SetControlRotation(FinalLockRot);
+            FRotator CurrentRot = GetController()->GetControlRotation();
+            FRotator SmoothedRot = FMath::RInterpTo(CurrentRot, FinalLockRot, DeltaTime, 10.0f);
+            GetController()->SetControlRotation(SmoothedRot);
         }
 
-        // 5. 【关键】强制身体朝向同步
-        // 既然要一直朝向，我们直接强制让 Actor 的 Yaw 等于控制器的 Yaw
-        FRotator ActorRot = GetActorRotation();
+        // 6. 强制身体朝向同步 (Yaw)
         SetActorRotation(FRotator(0.f, LookAtRot.Yaw, 0.f));
     }
 }

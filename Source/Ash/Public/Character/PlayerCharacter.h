@@ -49,10 +49,19 @@ public:
 
     void EnableTargetLock(AActor* NewTarget);
     void DisableTargetLock();
-    
+
+    UPROPERTY(BlueprintReadWrite, Category = "Combat")
+    AActor* BossActor;
 
 protected:
+    
 
+    // 仰角限制：比如最低俯视 -30度，最高仰视 10度
+    UPROPERTY(EditAnywhere, Category = "Camera")
+    float MinLockPitch = -50.0f;
+
+    UPROPERTY(EditAnywhere, Category = "Camera")
+    float MaxLockPitch = 20.0f;
     
     UPROPERTY(BlueprintReadOnly)
     AActor* CurrentLockedTarget;

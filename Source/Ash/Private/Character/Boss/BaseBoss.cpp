@@ -110,15 +110,24 @@ void ABaseBoss::BeginPlay()
 void ABaseBoss::OnLockZoneOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
     UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-    if (APlayerCharacter* Player = Cast<APlayerCharacter>(OtherActor))
-    {
-       Player->EnableTargetLock(this);
+   if (APlayerCharacter* Player = Cast<APlayerCharacter>(OtherActor))
+   {
+      // --- ash 核心赋值逻辑 ---
+      // 1. 将当前的 Boss (this) 传给玩家变量
+      Player->BossActor = this; 
        
-       if (ABossAIController* BossAI = Cast<ABossAIController>(GetController()))
-       {
-          BossAI->OnPlayerEnteredArena(Player);
-       }
-    }
+      // 2. 开启锁定逻辑
+      Player->EnableTargetLock(this);
+       
+      // 3. 通知 AI 控制器玩家已进入
+      if (ABossAIController* BossAI = Cast<ABossAIController>(GetController()))
+      {
+         BossAI->OnPlayerEnteredArena(Player);
+      }
+
+      // 调试打印，确认传递成功
+      // GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Cyan, TEXT("ash: Boss Reference sent to Player!"));
+   }
 }
 
 void ABaseBoss::OnHealthChanged(const FOnAttributeChangeData& Data)
@@ -146,6 +155,7 @@ void ABaseBoss::OnHealthChanged(const FOnAttributeChangeData& Data)
    // --- 3. 死亡逻辑判断 ---
    if (NewHealth <= 0.f)
    {
+   
       if (AbilitySystemComponent)
       {
          // 注意：这里的标签需要和你 GA 蓝图中的 Ability Tags 保持一致
