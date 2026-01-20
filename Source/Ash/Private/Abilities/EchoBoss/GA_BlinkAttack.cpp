@@ -16,7 +16,8 @@ UGA_BlinkAttack::UGA_BlinkAttack()
 
 void UGA_BlinkAttack::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
 {
-    if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Red, TEXT("ash: BlinkAttack ACTIVATED!"));
+    // if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Magenta, TEXT("activate"));
+
     if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
     {
        FinishAbility();
@@ -24,7 +25,6 @@ void UGA_BlinkAttack::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
     }
 
     // 1. 【核心】开启全局监听
-    // 既然两段伤害都在后面，我们从一开始就竖起耳朵听，且 bOnlyTriggerOnce = false (允许听到多次伤害)
     FGameplayTag HitTag = FGameplayTag::RequestGameplayTag(FName("Event.Boss.Melee.Hit"));
     UAbilityTask_WaitGameplayEvent* HitTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(this, HitTag, nullptr, false, true);
     
@@ -32,7 +32,6 @@ void UGA_BlinkAttack::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
     {
         HitTask->EventReceived.AddDynamic(this, &UGA_BlinkAttack::OnMeleeHitReceived);
         HitTask->ReadyForActivation();
-        if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Blue, TEXT("ash: GA Listener START - Ready for Multi-Hit"));
     }
 
     // 2. 开启位移监听
@@ -45,16 +44,12 @@ void UGA_BlinkAttack::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
     UAbilityTask_PlayMontageAndWait* StartTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this, TEXT("StartTask"), DashStartMontage);
     if (StartTask)
     {
-        // ash重点：这里绝对不要绑定 FinishAbility！
-        // 因为当第二段动画开始播放时，第一段会被 Interrupted。
-        // 如果绑定了，技能就自杀了。我们这里什么都不绑，让位移事件去驱动流程。
         StartTask->ReadyForActivation();
     }
 }
 
 void UGA_BlinkAttack::OnDashEventReceived(FGameplayEventData Payload)
 {
-    // ... 这里保持原本的位移计算逻辑不变 ...
     AActor* Boss = GetAvatarActorFromActorInfo();
     APawn* Player = UGameplayStatics::GetPlayerPawn(GetWorld(), 0);
 
@@ -83,14 +78,10 @@ void UGA_BlinkAttack::OnDashEventReceived(FGameplayEventData Payload)
 
 void UGA_BlinkAttack::OnDashFinished()
 {
-    // 位移结束，播放第二段包含攻击的动画
-    if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Cyan, TEXT("ash: Playing Second Montage (Attacks inside)"));
-
     UAbilityTask_PlayMontageAndWait* AttackTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this, TEXT("AttackTask"), DashHitMontage, 1.0f, FName("DashHit"));
     
     if (AttackTask)
     {
-        // 只有这第二段动画播完，才是真的结束
         AttackTask->OnCompleted.AddDynamic(this, &UGA_BlinkAttack::FinishAbility);
         AttackTask->OnInterrupted.AddDynamic(this, &UGA_BlinkAttack::FinishAbility);
         AttackTask->OnCancelled.AddDynamic(this, &UGA_BlinkAttack::FinishAbility);
@@ -105,33 +96,26 @@ void UGA_BlinkAttack::OnDashFinished()
 
 void UGA_BlinkAttack::OnMeleeHitReceived(FGameplayEventData Payload)
 {
-    // ash: 只要进这里，说明伤害触发了
-    if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Yellow, TEXT("ash: Hit Received!"));
-
     if (DamageEffectClass)
     {
-        // 1. 完全复刻 GA_Echo_MeleeAttack 的写法
         FGameplayEffectSpecHandle SpecHandle = MakeOutgoingGameplayEffectSpec(DamageEffectClass, GetAbilityLevel());
        
         if (SpecHandle.IsValid())
         {
             float Multiplier = (Payload.EventMagnitude != 0.f) ? Payload.EventMagnitude : 1.0f; 
-            float TotalDamage = BaseDamage * Multiplier; // 你的基础伤害
+            float TotalDamage = BaseDamage * Multiplier;
 
             FGameplayTag DataTag = FGameplayTag::RequestGameplayTag(FName("Data.FinalDamage"));
             SpecHandle.Data.Get()->SetSetByCallerMagnitude(DataTag, -TotalDamage);
 
-            // 2. 直接应用到 TargetData (自动处理批量目标)
             ApplyGameplayEffectSpecToTarget(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, SpecHandle, Payload.TargetData);
-
-            if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green, FString::Printf(TEXT("ash: Damage Applied: %.1f"), TotalDamage));
         }
     }
 }
 
 void UGA_BlinkAttack::FinishAbility()
 {
-    // 1. 强行停止所有相关的蒙太奇，防止动画状态残留
+    // if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Magenta, TEXT("ash: BlinkAttack TRULY ENDED"));
     if (GetAvatarActorFromActorInfo())
     {
         if (ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo()))
@@ -140,22 +124,10 @@ void UGA_BlinkAttack::FinishAbility()
         }
     }
 
-    // 2. 打印调试信息，确保我们知道技能确实结束了
-    if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Magenta, TEXT("ash: BlinkAttack TRULY ENDED"));
-
-    // 3. 调用标准的结束函数
-    // 注意：bReplicateEndAbility 设置为 true
     EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
 }
 
 bool UGA_BlinkAttack::CanActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayTagContainer* SourceTags, const FGameplayTagContainer* TargetTags, FGameplayTagContainer* OptionalRelevantTags) const
 {
-    bool bCanActivate = Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags);
-    
-    if (!bCanActivate && GEngine)
-    {
-        GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Red, TEXT("ash: CANNOT ACTIVATE BLINK ATTACK! CHECK TAGS/COOLDOWN"));
-    }
-    
-    return bCanActivate;
+    return Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags);
 }

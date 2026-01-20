@@ -15,26 +15,37 @@ void UBTService_UpdateDistance::TickNode(UBehaviorTreeComponent& OwnerComp, uint
 {
 	Super::TickNode(OwnerComp, NodeMemory, DeltaSeconds);
 
-	// GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, "Update Distance");
 	AAIController* AIC = OwnerComp.GetAIOwner();
 	UBlackboardComponent* BB = OwnerComp.GetBlackboardComponent();
 
 	if (AIC && BB)
 	{
 		APawn* Boss = AIC->GetPawn();
-		// 从黑板获取目标 Actor (玩家)
+		// 1. 获取目标 (玩家)
 		AActor* Target = Cast<AActor>(BB->GetValueAsObject(TargetActorKey.SelectedKeyName));
 
 		if (Boss && Target)
 		{
-			// 计算距离
+			// 2. 计算距离
 			float Dist = FVector::Dist(Boss->GetActorLocation(), Target->GetActorLocation());
             
-			// 更新黑板变量
+			// 3. 更新黑板 (这是行为树判断的依据)
 			BB->SetValueAsFloat(DistanceKey.SelectedKeyName, Dist);
 
-			// 调试语句
-			// GEngine->AddOnScreenDebugMessage(1, 0.1f, FColor::Cyan, FString::Printf(TEXT("ash: Current Distance: %f"), Dist));
+			// 4. 屏幕输出：蓝色代表正常运行
+			if (GEngine)
+			{
+				GEngine->AddOnScreenDebugMessage(1, 0.1f, FColor::Cyan, 
+					FString::Printf(TEXT("ash: 目标: %s | 当前距离: %.2f"), *Target->GetName(), Dist));
+			}
+		}
+		else
+		{
+			// 5. 错误提示：红色代表没找到玩家
+			if (GEngine)
+			{
+				GEngine->AddOnScreenDebugMessage(2, 0.1f, FColor::Red, TEXT("ash: 错误 - 无法获取 TargetActor，请检查黑板 Key 绑定"));
+			}
 		}
 	}
 }
