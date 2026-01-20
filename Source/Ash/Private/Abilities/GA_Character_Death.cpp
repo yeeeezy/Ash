@@ -9,6 +9,7 @@
 #include "Character/PlayerCharacter.h"
 #include "Kismet/GameplayStatics.h"
 #include "Navigation/PathFollowingComponent.h"
+#include "UI/AshHUD.h"
 
 
 UGA_Character_Death::UGA_Character_Death()
@@ -29,6 +30,9 @@ void UGA_Character_Death::ActivateAbility(const FGameplayAbilitySpecHandle Handl
 {
     Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 
+    
+
+    
     // 1. 先获取当前角色 (Player)
     APlayerCharacter* Character = Cast<APlayerCharacter>(GetAvatarActorFromActorInfo());
     
@@ -98,6 +102,8 @@ void UGA_Character_Death::ActivateAbility(const FGameplayAbilitySpecHandle Handl
         MontageTask->OnCompleted.AddDynamic(this, &UGA_Character_Death::OnDeathAnimationFinished);
         MontageTask->OnInterrupted.AddDynamic(this, &UGA_Character_Death::OnDeathAnimationFinished);
         MontageTask->ReadyForActivation();
+
+
     }
     else
     {
@@ -108,7 +114,28 @@ void UGA_Character_Death::ActivateAbility(const FGameplayAbilitySpecHandle Handl
 
 void UGA_Character_Death::OnDeathAnimationFinished()
 {
-  
+    // ash: 1. 获取 PlayerController
+    // 玩家死亡时，CurrentActorInfo 里的 PlayerController 通常是 100% 有效的
+    if (CurrentActorInfo && CurrentActorInfo->PlayerController.IsValid())
+    {
+        APlayerController* PC = CurrentActorInfo->PlayerController.Get();
+        
+        // 2. 获取 HUD 并显示失败界面
+        AAshHUD* HUD = PC->GetHUD<AAshHUD>();
+        if (HUD)
+        {
+            // 传入 false 代表“挑战失败”
+            HUD->ShowGameResult(false);
+            
+            // 3. 开启鼠标，切换到 UI 模式以便点击“重新开始”
+            PC->bShowMouseCursor = true;
+            FInputModeUIOnly InputMode;
+            PC->SetInputMode(InputMode);
+            
+            // 4. 如果你希望死亡后游戏画面静止，可以取消下面这行注释
+            // UGameplayStatics::SetGamePaused(GetWorld(), true);
+        }
+    }
     
     // 4. 正式结束能力
     EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);

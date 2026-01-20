@@ -45,7 +45,7 @@ void UGA_Echo_MeleeAttack::HandleHitEvent(FGameplayEventData Payload)
        if (SpecHandle.IsValid())
        {
           float Multiplier = (Payload.EventMagnitude != 0.f) ? Payload.EventMagnitude : 1.0f; 
-          float TotalDamage = 25.f * Multiplier;
+          float TotalDamage = BaseDamage * Multiplier;
 
           FGameplayTag DataTag = FGameplayTag::RequestGameplayTag(FName("Data.FinalDamage"));
           SpecHandle.Data.Get()->SetSetByCallerMagnitude(DataTag, -TotalDamage);

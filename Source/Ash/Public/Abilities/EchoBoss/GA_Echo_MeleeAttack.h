@@ -34,6 +34,11 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Echo|Abilities")
 	TSubclassOf<class UGameplayEffect> DamageGEClass;
 
+
+	// ash: 基础伤害数值，可以在蓝图 Details 面板设置
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ash|Combat")
+	float BaseDamage = 10.0f;
+	
 	// 回调函数必须标记为 UFUNCTION
 	UFUNCTION()
 	void HandleHitEvent(FGameplayEventData Payload);

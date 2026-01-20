@@ -16,6 +16,7 @@ UGA_BlinkAttack::UGA_BlinkAttack()
 
 void UGA_BlinkAttack::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
 {
+    if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Red, TEXT("ash: BlinkAttack ACTIVATED!"));
     if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
     {
        FinishAbility();
@@ -115,7 +116,7 @@ void UGA_BlinkAttack::OnMeleeHitReceived(FGameplayEventData Payload)
         if (SpecHandle.IsValid())
         {
             float Multiplier = (Payload.EventMagnitude != 0.f) ? Payload.EventMagnitude : 1.0f; 
-            float TotalDamage = 15.f * Multiplier; // 你的基础伤害
+            float TotalDamage = BaseDamage * Multiplier; // 你的基础伤害
 
             FGameplayTag DataTag = FGameplayTag::RequestGameplayTag(FName("Data.FinalDamage"));
             SpecHandle.Data.Get()->SetSetByCallerMagnitude(DataTag, -TotalDamage);
@@ -130,5 +131,31 @@ void UGA_BlinkAttack::OnMeleeHitReceived(FGameplayEventData Payload)
 
 void UGA_BlinkAttack::FinishAbility()
 {
+    // 1. 强行停止所有相关的蒙太奇，防止动画状态残留
+    if (GetAvatarActorFromActorInfo())
+    {
+        if (ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo()))
+        {
+            Character->GetMesh()->GetAnimInstance()->Montage_Stop(0.2f);
+        }
+    }
+
+    // 2. 打印调试信息，确保我们知道技能确实结束了
+    if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Magenta, TEXT("ash: BlinkAttack TRULY ENDED"));
+
+    // 3. 调用标准的结束函数
+    // 注意：bReplicateEndAbility 设置为 true
     EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
+}
+
+bool UGA_BlinkAttack::CanActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayTagContainer* SourceTags, const FGameplayTagContainer* TargetTags, FGameplayTagContainer* OptionalRelevantTags) const
+{
+    bool bCanActivate = Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags);
+    
+    if (!bCanActivate && GEngine)
+    {
+        GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Red, TEXT("ash: CANNOT ACTIVATE BLINK ATTACK! CHECK TAGS/COOLDOWN"));
+    }
+    
+    return bCanActivate;
 }

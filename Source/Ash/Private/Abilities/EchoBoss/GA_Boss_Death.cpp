@@ -8,6 +8,7 @@
 #include "BrainComponent.h"
 #include "GameFramework/Character.h"
 #include "Components/CapsuleComponent.h"
+#include "Kismet/GameplayStatics.h"
 #include "UI/AshHUD.h"
 
 UGA_Boss_Death::UGA_Boss_Death()
@@ -58,6 +59,8 @@ void UGA_Boss_Death::OnDeathMontageFinished()
 		// 暴力定格最后一帧
 		Boss->GetMesh()->bPauseAnims = true;
 	}
+
+	
 
 	// 结束能力
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);

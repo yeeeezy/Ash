@@ -155,7 +155,13 @@ void ABaseBoss::OnHealthChanged(const FOnAttributeChangeData& Data)
    // --- 3. 死亡逻辑判断 ---
    if (NewHealth <= 0.f)
    {
-   
+
+      AAshHUD* HUD = Cast<AAshHUD>(GetWorld()->GetFirstPlayerController()->GetHUD());
+      if (HUD)
+      {
+         HUD->ShowGameResult(true); // 赢了！
+      }
+      
       if (AbilitySystemComponent)
       {
          // 注意：这里的标签需要和你 GA 蓝图中的 Ability Tags 保持一致
